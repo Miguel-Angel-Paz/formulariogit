@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Leer Excel y Convertir a JSON</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+
+<body>
+    <h2>Selecciona un archivo Excel:</h2>
+    <input type="file" id="fileInput" />
+    <button onclick="descargarJSON()">Descargar JSON</button>
+
+    <script>
+        let jsonData = [];
+
+        document.getElementById("fileInput").addEventListener("change", function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: "array" });
+
+                // Lee la primera hoja del libro
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+
+                // Convierte la hoja a JSON y guarda en jsonData
+                jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                jsonData = XLSX.utils.sheet_to_json(worksheet, { raw: false, dateNF: "yyyy-mm-dd" })
+                    .map(row => Object.fromEntries(
+                        Object.entries(row).map(([key, value]) => [
+                            key.replace(/\s+/g, ""), // Elimina espacios en la clave
+                            typeof value === 'string' ? value.trim() : value // Quita espacios de ambos lados del contenido si es texto
+                        ])
+                    ));
+
+
+                console.log(jsonData);
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+
+        function descargarJSON() {
+            if (!jsonData.length) {
+                alert("Primero selecciona un archivo Excel.");
+                return;
+            }
+
+            // Convierte los datos JSON a una cadena de texto
+            const jsonString = JSON.stringify(jsonData, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            // Crea un enlace de descarga
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "datos.json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+
+</html>
